@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DoxFast</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #0a0a0a;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    header {
+      background-color: #111;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 1px solid #333;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2em;
+    }
+    nav {
+      text-align: center;
+      margin: 20px 0;
+    }
+    nav button {
+      margin: 0 10px;
+      padding: 10px 20px;
+      background-color: #222;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+    }
+    .post-list, .create-post, .chat-box, .auth-forms, .post-view, .admin-panel {
+      max-width: 800px;
+      margin: 20px auto;
+      background-color: #111;
+      padding: 20px;
+      border: 1px solid #333;
+    }
+    .social-links {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+    }
+    .social-links a {
+      color: #fff;
+      margin-left: 10px;
+      text-decoration: none;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      background: #222;
+      border: 1px solid #444;
+      color: white;
+    }
+    .chat-messages {
+      height: 200px;
+      overflow-y: scroll;
+      background: #000;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .post {
+      border: 1px solid #444;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #1a1a1a;
+      cursor: pointer;
+    }
+    .admin-label {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>DoxFast</h1>
+  </header>
+
+  <nav>
+    <button onclick="showSection('create')">Создать пост</button>
+    <button onclick="showSection('posts')">Посты</button>
+    <button onclick="showSection('chat')">Чат</button>
+    <button onclick="showSection('admin')">Админ панель</button>
+  </nav>
+
+  <div id="create" class="create-post" style="display: none">
+    <h2>Создать пост</h2>
+    <input type="text" id="post-title" placeholder="Заголовок поста" />
+    <textarea rows="5" id="post-content" placeholder="Содержимое..."></textarea>
+    <label><input type="checkbox" id="anonymous-post" /> Анонимно</label>
+    <button onclick="createPost()">Опубликовать</button>
+  </div>
+
+  <div id="posts" class="post-list" style="display: none">
+    <h2>Посты</h2>
+    <div id="post-list"></div>
+  </div>
+
+  <div id="post-view" class="post-view" style="display: none">
+    <h2 id="view-title"></h2>
+    <p id="view-content"></p>
+    <small id="view-meta"></small><br><br>
+    <button onclick="showSection('posts')">Назад к постам</button>
+  </div>
+
+  <div id="chat" class="chat-box" style="display: none">
+    <h2>Онлайн Чат</h2>
+    <div class="chat-messages" id="chat-messages"></div>
+    <input type="text" id="chat-input" placeholder="Введите сообщение..." />
+    <button onclick="sendMessage()">Отправить</button>
+  </div>
+
+  <div id="admin" class="admin-panel" style="display: none">
+    <h2>Админ Панель</h2>
+    <div id="admin-login-form">
+      <input type="text" id="admin-login" placeholder="Логин" />
+      <input type="password" id="admin-password" placeholder="Пароль" />
+      <button onclick="adminLogin()">Войти</button>
+    </div>
+    <div id="admin-content" style="display:none">
+      <button onclick="adminLogout()">Выйти</button>
+      <h3>Все посты</h3>
+      <div id="admin-post-list"></div>
+    </div>
+  </div>
+
+  <div class="social-links">
+    <a href="https://t.me/yourchannel" target="_blank">Telegram</a>
+    <a href="https://discord.gg/yourserver" target="_blank">Discord</a>
+  </div>
+
+  <script>
+    let isAdmin = false;
+
+    function showSection(id) {
+      ['create', 'posts', 'chat', 'admin', 'post-view'].forEach(s => {
+        document.getElementById(s).style.display = s === id ? 'block' : 'none';
+      });
+      if (id === 'posts') loadPosts();
+      if (id === 'chat') loadChat();
+      if (id === 'admin' && isAdmin) loadAdminPosts();
+    }
+
+    function createPost() {
+      const title = document.getElementById('post-title').value;
+      const content = document.getElementById('post-content').value;
+      const anonymous = document.getElementById('anonymous-post').checked;
+      if (!title || !content) return alert('Заполните все поля.');
+      const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+      posts.unshift({
+        title,
+        content,
+        author: isAdmin ? '<span class="admin-label">Admin</span>' : 'Аноним',
+        date: new Date().toLocaleString()
+      });
+      localStorage.setItem('posts', JSON.stringify(posts));
+      alert('Пост опубликован');
+      document.getElementById('post-title').value = '';
+      document.getElementById('post-content').value = '';
+    }
+
+    function loadPosts() {
+      const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+      const container = document.getElementById('post-list');
+      container.innerHTML = posts.map((post, index) => `
+        <div class="post" onclick="viewPost(${index})">
+          <h3>${post.title}</h3>
+        </div>
+      `).join('');
+    }
+
+    function viewPost(index) {
+      const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+      const post = posts[index];
+      document.getElementById('view-title').innerText = post.title;
+      document.getElementById('view-content').innerText = post.content;
+      document.getElementById('view-meta').innerHTML = 'Автор: ' + post.author + ' | ' + post.date;
+      showSection('post-view');
+    }
+
+    function sendMessage() {
+      const msg = document.getElementById('chat-input').value;
+      if (!msg) return;
+      const messages = JSON.parse(localStorage.getItem('chat') || '[]');
+      messages.push({
+        user: isAdmin ? 'Admin' : 'Аноним',
+        message: msg,
+        time: new Date().toLocaleTimeString()
+      });
+      localStorage.setItem('chat', JSON.stringify(messages));
+      document.getElementById('chat-input').value = '';
+      loadChat();
+    }
+
+    function loadChat() {
+      const messages = JSON.parse(localStorage.getItem('chat') || '[]');
+      const chatBox = document.getElementById('chat-messages');
+      chatBox.innerHTML = messages.map(m => `<p><b>${m.user}:</b> ${m.message} <small>(${m.time})</small></p>`).join('');
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function adminLogin() {
+      const login = document.getElementById('admin-login').value;
+      const pass = document.getElementById('admin-password').value;
+      if (login === 'Admin' && pass === '𝟙𝟡𝟠𝟜𝐗𝐱𝟜𝟚𝟡✦ ') {
+        isAdmin = true;
+        alert('Успешный вход в админ панель.');
+        document.getElementById('admin-content').style.display = 'block';
+        document.getElementById('admin-login-form').style.display = 'none';
+        loadAdminPosts();
+      } else {
+        alert('Неверный логин или пароль.');
+      }
+    }
+
+    function adminLogout() {
+      isAdmin = false;
+      document.getElementById('admin-content').style.display = 'none';
+      document.getElementById('admin-login-form').style.display = 'block';
+    }
+
+    function loadAdminPosts() {
+      const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+      const container = document.getElementById('admin-post-list');
+      container.innerHTML = posts.map((post, index) => `
+        <div class="post">
+          <h3>${post.title}</h3>
+          <button onclick="deletePost(${index})">Удалить</button>
+        </div>
+      `).join('');
+    }
+
+    function deletePost(index) {
+      let posts = JSON.parse(localStorage.getItem('posts') || '[]');
+      posts.splice(index, 1);
+      localStorage.setItem('posts', JSON.stringify(posts));
+      loadPosts();
+      loadAdminPosts();
+    }
+  </script>
+</body>
+</html>
